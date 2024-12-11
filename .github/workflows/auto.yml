@@ -2,7 +2,7 @@ name: Auto
 
 on:
   schedule:
-    - cron: "30 22 * * *" # 北京时间上午06:30
+    - cron: "0 22 * * *" # UTC时间22:00 -> 北京时间06:00
   workflow_dispatch:
 
 env:
@@ -24,22 +24,17 @@ jobs:
   CheckIn:
     runs-on: ubuntu-latest
     steps:
+      - name: Set random delay
+        run: |
+          # 随机产生0-60之间的整数，表示延迟分钟数
+          RANDOM_DELAY=$(( $RANDOM % 61 ))
+          echo "Sleeping for $RANDOM_DELAY minutes..."
+          sleep ${RANDOM_DELAY}m
+      
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
       - name: Run Project
         run: |
           cd workflows
           npm i
-          npm checkin
-
-#  SeaGold:
-#    needs: CheckIn
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#      - uses: actions/setup-node@v2
-#      - name: Run Project
-#        run: |
-#          cd workflows
-#          yarn
-#          yarn seagold
+          npm run checkin

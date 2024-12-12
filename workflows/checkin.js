@@ -26,7 +26,7 @@ class GrowthTask extends Task {
   contCount = 0; // 连续签到天数
   sumCount = 0; // 累计签到天数
 
-  async run() {
+  function async run() {
     const growth = this.juejin.growth();
 
     const todayStatus = await growth.getTodayStatus();
@@ -44,6 +44,16 @@ class GrowthTask extends Task {
     this.contCount = counts.cont_count;
     this.sumCount = counts.sum_count;
   }
+
+  retry = 0
+  try{
+this.run()
+}catch(e){
+  conlose.log(e)
+  if(this.retry>3) return
+  this.run()
+  this.retry += 1
+}
 }
 
 class DipLuckyTask extends Task {

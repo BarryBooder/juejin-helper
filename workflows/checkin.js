@@ -25,19 +25,18 @@ class GrowthTask extends Task {
   sumPoint = 0; // 当前矿石数
   contCount = 0; // 连续签到天数
   sumCount = 0; // 累计签到天数
+  retry = 0;     // 重试计数器
 
-  function async run() {
+  async run() {
     const growth = this.juejin.growth();
-
     const todayStatus = await growth.getTodayStatus();
     if (!todayStatus) {
       const checkInResult = await growth.checkIn();
-
       this.incrPoint = checkInResult.incr_point;
       this.sumPoint = checkInResult.sum_point;
-      this.todayStatus = 1; // 本次签到
+      this.todayStatus = 1; // 本次签到成功
     } else {
-      this.todayStatus = 2; // 已签到
+      this.todayStatus = 2; // 已签到过
     }
 
     const counts = await growth.getCounts();
@@ -45,15 +44,22 @@ class GrowthTask extends Task {
     this.sumCount = counts.sum_count;
   }
 
-  retry = 0
-  try{
-this.run()
-}catch(e){
-  conlose.log(e)
-  if(this.retry>3) return
-  this.run()
-  this.retry += 1
-}
+  async runWithRetry() {
+    try {
+      await this.run();
+    } catch (e) {
+      console.log(e);
+      if (this.retry >= 3) {
+        // 超过三次重试仍失败，抛出错误
+        throw e;
+      } else {
+        // 增加重试次数，并再次调用
+        this.retry++;
+        await utils.wait(utils.randomRangeNumber(1000, 3000)); // 每次重试前等待1-3s
+        await this.runWithRetry();
+      }
+    }
+  }
 }
 
 class DipLuckyTask extends Task {
@@ -65,19 +71,7 @@ class DipLuckyTask extends Task {
 
   async run() {
     const growth = this.juejin.growth();
-
-    // 掘金沾喜气功能以停用！
-    // const luckyusersResult = await growth.getLotteriesLuckyUsers();
-    // if (luckyusersResult.count > 0) {
-    //   const no1LuckyUser = luckyusersResult.lotteries[0];
-    //   const dipLuckyResult = await growth.dipLucky(no1LuckyUser.history_id);
-    //   if (dipLuckyResult.has_dip) {
-    //     this.dipStatus = 2;
-    //   } else {
-    //     this.dipStatus = 1;
-    //     this.dipValue = dipLuckyResult.dip_value;
-    //   }
-    // }
+    // 沾喜气功能已停用，这里省略逻辑
 
     const luckyResult = await growth.getMyLucky();
     this.luckyValue = luckyResult.total_value;
@@ -98,25 +92,16 @@ class BugfixTask extends Task {
     const bugfixInfo = await bugfix.getUser(competition);
     this.userOwnBug = bugfixInfo.user_own_bug;
 
-    // 掘金Bugfix功能已停用。
-    // try {
-    //   const notCollectBugList = await bugfix.getNotCollectBugList();
-    //   await bugfix.collectBugBatch(notCollectBugList);
-    //   this.bugStatus = 1;
-    //   this.collectBugCount = notCollectBugList.length;
-    //   this.userOwnBug += this.collectBugCount;
-    // } catch (e) {
-    //   this.bugStatus = 2;
-    // }
+    // Bugfix功能已停用
   }
 }
 
 class LotteriesTask extends Task {
   taskName = "抽奖";
 
-  lottery = []; // 奖池
-  pointCost = 0; // 一次抽奖消耗
-  freeCount = 0; // 免费抽奖次数
+  lottery = []; 
+  pointCost = 0; 
+  freeCount = 0; 
   drawLotteryHistory = {};
   lotteryCount = 0;
   luckyValueProbability = 0;
@@ -265,7 +250,8 @@ class CheckIn {
     await this.mockVisitTask.run();
     await this.sdkTask.run();
     console.log(`运行 ${this.growthTask.taskName}`);
-    await this.growthTask.run();
+    // 使用runWithRetry保证出现异常后可自动重试
+    await this.growthTask.runWithRetry();
     console.log(`运行 ${this.dipLuckyTask.taskName}`);
     await this.dipLuckyTask.run();
     console.log(`运行 ${this.lotteriesTask.taskName}`);
@@ -297,21 +283,6 @@ ${
     1: `签到成功 +${this.growthTask.incrPoint} 矿石`,
     2: "今日已完成签到"
   }[this.growthTask.todayStatus]
-  // ${
-  //   {
-  //     "-1": "沾喜气已停用",
-  //     0: "沾喜气失败",
-  //     1: `沾喜气 +${this.dipLuckyTask.dipValue} 幸运值`,
-  //     2: "今日已经沾过喜气"
-  //   }[this.dipLuckyTask.dipStatus]
-  // }
-  // ${
-  //   this.bugfixTask.bugStatus === 1
-  //     ? this.bugfixTask.collectBugCount > 0
-  //       ? `收集Bug +${this.bugfixTask.collectBugCount}`
-  //       : "没有可收集Bug"
-  //     : "收集Bug失败"
-  // }
 }
 连续签到天数 ${this.growthTask.contCount}
 累计签到天数 ${this.growthTask.sumCount}
@@ -331,7 +302,6 @@ async function run(args) {
   let messageList = [];
   for (let cookie of cookies) {
     const checkin = new CheckIn(cookie);
-
     await utils.wait(utils.randomRangeNumber(1000, 5000)); // 初始等待1-5s
     await checkin.run(); // 执行
 

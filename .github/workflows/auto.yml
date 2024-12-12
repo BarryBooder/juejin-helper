@@ -24,12 +24,12 @@ jobs:
   CheckIn:
     runs-on: ubuntu-latest
     steps:
-      - name: Set random delay
-        run: |
-          # 随机产生0-60之间的整数，表示延迟分钟数
-          RANDOM_DELAY=$(( $RANDOM % 61 ))
-          echo "Sleeping for $RANDOM_DELAY minutes..."
-          sleep ${RANDOM_DELAY}m
+      # - name: Set random delay
+        # run: |
+        #   # 随机产生0-60之间的整数，表示延迟分钟数
+        #   RANDOM_DELAY=$(( $RANDOM % 61 ))
+        #   echo "Sleeping for $RANDOM_DELAY minutes..."
+        #   sleep ${RANDOM_DELAY}m
       
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
